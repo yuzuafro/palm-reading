@@ -1,4 +1,4 @@
-# AR手相ラボ
+# 手相占い
 
 PC と Android 端末で動く、PWA 対応の AR 手相占い Web アプリです。  
 MediaPipe Hand Landmarker で手のランドマークを検出し、生命線・知能線・感情線を推定してカメラ映像へ重ねます。
@@ -33,7 +33,8 @@ npm run build
 
 ## GitHub Pages デプロイ
 
-このリポジトリには GitHub Actions による Pages デプロイ workflow を含めています。
+このリポジトリには GitHub Actions による Pages デプロイ workflow (`.github/workflows/deploy.yml`) を含めています。  
+`main` ブランチへ push すると workflow が `npm ci` → `npm run build` を実行し、生成された `dist/` を Pages に公開します。
 
 1. GitHub に push する
 2. リポジトリ設定で **Pages > Build and deployment > Source** を **GitHub Actions** にする
@@ -62,6 +63,6 @@ npm run build
 
 ## 注意
 
-- 診断は手の線そのものを画像解析するものではなく、手のランドマークから推定したエンタメ用途の簡易占いです
+- 診断は手の線そのものを画像解析するものではなく、手のランドマークから推定した簡易占いです
 - 初回読み込み時にモデルと Wasm を取得し、その後は service worker が主要アセットをキャッシュします
 
