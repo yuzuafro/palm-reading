@@ -10,6 +10,11 @@ import { LINE_PALETTE } from './lib/linePalette'
 import { analyzePalm, type PalmReading } from './lib/palmistry'
 
 type SessionState = 'idle' | 'loading' | 'running' | 'paused' | 'error'
+type CameraFacingMode = 'user' | 'environment'
+type CameraDeviceOption = {
+  deviceId: string
+  label: string
+}
 type StopSessionOptions = {
   resetState?: boolean
   preserveReading?: boolean
@@ -21,6 +26,7 @@ const MODEL_PATH = new URL(
   `${import.meta.env.BASE_URL}models/hand_landmarker.task`,
   window.location.href,
 ).toString()
+const MOBILE_DEVICE_PATTERN = /Android|iPhone|iPad|iPod|Mobile/i
 
 function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -36,11 +42,61 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [reading, setReading] = useState<PalmReading | null>(null)
   const [isHandDetected, setIsHandDetected] = useState(false)
+  const [selectedFacingMode, setSelectedFacingMode] = useState<CameraFacingMode>('environment')
+  const [videoInputs, setVideoInputs] = useState<CameraDeviceOption[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState('')
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
     null,
   )
 
   const isSecure = window.isSecureContext || window.location.hostname === 'localhost'
+  const isMobileDevice =
+    MOBILE_DEVICE_PATTERN.test(navigator.userAgent) && window.matchMedia('(pointer: coarse)').matches
+  const isPreviewMirrored = !isMobileDevice || selectedFacingMode === 'user'
+  const showDesktopCameraSelect = !isMobileDevice && videoInputs.length > 1
+
+  const refreshVideoInputs = useCallback(
+    async (activeStream?: MediaStream | null) => {
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        setVideoInputs([])
+        return
+      }
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const nextVideoInputs = devices
+          .filter((device) => device.kind === 'videoinput')
+          .map((device, index) => ({
+            deviceId: device.deviceId,
+            label: device.label || `カメラ ${index + 1}`,
+          }))
+
+        const activeDeviceId =
+          activeStream?.getVideoTracks()[0]?.getSettings().deviceId ??
+          streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId ??
+          ''
+
+        setVideoInputs(nextVideoInputs)
+
+        if (!isMobileDevice) {
+          setSelectedDeviceId((currentDeviceId) => {
+            if (currentDeviceId && nextVideoInputs.some((device) => device.deviceId === currentDeviceId)) {
+              return currentDeviceId
+            }
+
+            if (activeDeviceId && nextVideoInputs.some((device) => device.deviceId === activeDeviceId)) {
+              return activeDeviceId
+            }
+
+            return nextVideoInputs[0]?.deviceId ?? ''
+          })
+        }
+      } catch (error) {
+        console.error('カメラ一覧の取得に失敗しました。', error)
+      }
+    },
+    [isMobileDevice],
+  )
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -184,7 +240,7 @@ function App() {
   )
 
   const startSession = useCallback(
-    async () => {
+    async (cameraOverride?: { facingMode?: CameraFacingMode; deviceId?: string }) => {
       if (!isSecure) {
         setSessionState('error')
         setErrorMessage('カメラ利用には HTTPS もしくは localhost が必要です。')
@@ -221,24 +277,71 @@ function App() {
 
         setFeedback('カメラを起動しています...')
 
+        const requestedFacingMode = cameraOverride?.facingMode ?? selectedFacingMode
+        const requestedDeviceId = cameraOverride?.deviceId ?? selectedDeviceId
+        const baseVideoConstraints: MediaTrackConstraints = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        }
+
         let stream: MediaStream
-        try {
+
+        if (isMobileDevice) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                ...baseVideoConstraints,
+                facingMode: { exact: requestedFacingMode },
+              },
+            })
+          } catch (error) {
+            if (
+              !(error instanceof DOMException) ||
+              (error.name !== 'OverconstrainedError' && error.name !== 'NotFoundError')
+            ) {
+              throw error
+            }
+
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                ...baseVideoConstraints,
+                facingMode: { ideal: requestedFacingMode },
+              },
+            })
+          }
+        } else if (requestedDeviceId) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                ...baseVideoConstraints,
+                deviceId: { exact: requestedDeviceId },
+              },
+            })
+          } catch (error) {
+            if (
+              !(error instanceof DOMException) ||
+              (error.name !== 'OverconstrainedError' && error.name !== 'NotFoundError')
+            ) {
+              throw error
+            }
+
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: baseVideoConstraints,
+            })
+          }
+        } else {
           stream = await navigator.mediaDevices.getUserMedia({
             audio: false,
-            video: {
-              facingMode: { ideal: 'user' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-          })
-        } catch {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: true,
+            video: baseVideoConstraints,
           })
         }
 
         streamRef.current = stream
+        await refreshVideoInputs(stream)
 
         const video = videoRef.current
         if (!video) {
@@ -282,7 +385,35 @@ function App() {
         )
       }
     },
-    [isSecure, renderFrame, stopSession, syncCanvasSize],
+    [isMobileDevice, isSecure, refreshVideoInputs, renderFrame, selectedDeviceId, selectedFacingMode, stopSession, syncCanvasSize],
+  )
+
+  const handleFacingModeChange = useCallback(
+    (nextFacingMode: CameraFacingMode) => {
+      if (selectedFacingMode === nextFacingMode) {
+        return
+      }
+
+      setSelectedFacingMode(nextFacingMode)
+      if (sessionState === 'running') {
+        void startSession({ facingMode: nextFacingMode, deviceId: '' })
+      }
+    },
+    [selectedFacingMode, sessionState, startSession],
+  )
+
+  const handleDeviceSelect = useCallback(
+    (nextDeviceId: string) => {
+      if (selectedDeviceId === nextDeviceId) {
+        return
+      }
+
+      setSelectedDeviceId(nextDeviceId)
+      if (sessionState === 'running') {
+        void startSession({ deviceId: nextDeviceId })
+      }
+    },
+    [selectedDeviceId, sessionState, startSession],
   )
 
   const handleInstall = useCallback(async () => {
@@ -312,6 +443,28 @@ function App() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
   }, [])
+
+  useEffect(() => {
+    const refreshTimer = window.setTimeout(() => {
+      void refreshVideoInputs()
+    }, 0)
+
+    if (!navigator.mediaDevices?.addEventListener) {
+      return () => {
+        window.clearTimeout(refreshTimer)
+      }
+    }
+
+    const handleDeviceChange = () => {
+      void refreshVideoInputs()
+    }
+
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange)
+    return () => {
+      window.clearTimeout(refreshTimer)
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange)
+    }
+  }, [refreshVideoInputs])
 
   useEffect(() => {
     return () => {
@@ -380,9 +533,56 @@ function App() {
             <p className="card-caption">{feedback}</p>
           </div>
 
+          {isMobileDevice ? (
+            <div className="camera-controls" aria-label="カメラ切り替え">
+              <span className="camera-controls-label">使用カメラ</span>
+              <div className="camera-toggle-group" role="group" aria-label="アウトカメラ・インカメラの選択">
+                <button
+                  type="button"
+                  className={`camera-toggle${selectedFacingMode === 'environment' ? ' is-active' : ''}`}
+                  onClick={() => handleFacingModeChange('environment')}
+                  disabled={sessionState === 'loading'}
+                >
+                  アウトカメラ
+                </button>
+                <button
+                  type="button"
+                  className={`camera-toggle${selectedFacingMode === 'user' ? ' is-active' : ''}`}
+                  onClick={() => handleFacingModeChange('user')}
+                  disabled={sessionState === 'loading'}
+                >
+                  インカメラ
+                </button>
+              </div>
+            </div>
+          ) : showDesktopCameraSelect ? (
+            <label className="camera-select">
+              <span className="camera-controls-label">使用カメラ</span>
+              <select
+                value={selectedDeviceId}
+                onChange={(event) => handleDeviceSelect(event.target.value)}
+                disabled={sessionState === 'loading'}
+              >
+                {videoInputs.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <div className="camera-stage">
-            <video ref={videoRef} className="camera-video" playsInline muted />
-            <canvas ref={canvasRef} className="camera-overlay" />
+            <video
+              ref={videoRef}
+              className={`camera-video${isPreviewMirrored ? ' is-mirrored' : ''}`}
+              playsInline
+              muted
+            />
+            <canvas
+              ref={canvasRef}
+              className={`camera-overlay${isPreviewMirrored ? ' is-mirrored' : ''}`}
+            />
             <div
               className={`stage-overlay${
                 isHandDetected || sessionState !== 'running' ? ' stage-overlay-hidden' : ''
