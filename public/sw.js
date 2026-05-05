@@ -1,5 +1,5 @@
 const ASSET_VERSION = new URL(self.location.href).searchParams.get('v') ?? 'dev'
-const CACHE_NAME = `tesou-shell-${ASSET_VERSION}`
+const CACHE_NAME = `palm-reading-shell-${ASSET_VERSION}`
 const BASE_PATH = new URL(self.registration.scope).pathname
 const PRECACHE_URLS = [
   BASE_PATH,
