@@ -1,0 +1,24 @@
+{
+  "name": "手相占い",
+  "short_name": "手相占い",
+  "description": "手のひらを読み取って 3 本の線を重ねて表示する手相占いアプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080610",
+  "theme_color": "#120d1f",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
