@@ -42,7 +42,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [reading, setReading] = useState<PalmReading | null>(null)
   const [isHandDetected, setIsHandDetected] = useState(false)
-  const [selectedFacingMode, setSelectedFacingMode] = useState<CameraFacingMode>('environment')
+  const [selectedFacingMode, setSelectedFacingMode] = useState<CameraFacingMode>('user')
   const [videoInputs, setVideoInputs] = useState<CameraDeviceOption[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
@@ -221,7 +221,7 @@ function App() {
           ? analyzePalm(landmarks, handednessLabel, frameAnalysis.detectedLines)
           : null
 
-      drawHandOverlay(canvasRef.current, frameAnalysis, landmarks ?? null, nextReading)
+      drawHandOverlay(canvasRef.current, frameAnalysis, landmarks ?? null, nextReading, isPreviewMirrored)
 
       if (nextReading) {
         lastHandSeenRef.current = performance.now()
@@ -236,7 +236,7 @@ function App() {
         updateUi(null, '手のひら全体を画面に収めてください。')
       }
     },
-    [updateUi],
+    [isPreviewMirrored, updateUi],
   )
 
   const startSession = useCallback(
@@ -484,6 +484,33 @@ function App() {
         : sessionState === 'error'
           ? 'エラー'
           : '待機中'
+  const startButtonLabel =
+    sessionState === 'running'
+      ? '再スキャン'
+      : sessionState === 'paused'
+        ? '再開'
+        : '開始'
+
+  const renderSessionActionButtons = (className: string) => (
+    <div className={className}>
+      <button
+        type="button"
+        className="primary-button"
+        onClick={() => void startSession()}
+        disabled={sessionState === 'loading'}
+      >
+        {startButtonLabel}
+      </button>
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={() => stopSession({ preserveReading: true, preserveOverlay: true })}
+        disabled={sessionState !== 'running'}
+      >
+        停止
+      </button>
+    </div>
+  )
 
   return (
     <div className="app-shell">
@@ -493,27 +520,8 @@ function App() {
           <p className="lead">
             カメラで手のひらを読み取り、生命線・知能線・感情線を重ねて表示します。
           </p>
-          <div className="hero-actions">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => void startSession()}
-              disabled={sessionState === 'loading'}
-            >
-              {sessionState === 'running'
-                ? '再スキャン'
-                : sessionState === 'paused'
-                  ? '再開'
-                  : '開始'}
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => stopSession({ preserveReading: true, preserveOverlay: true })}
-              disabled={sessionState !== 'running'}
-            >
-              停止
-            </button>
+          <div className={`hero-actions${isMobileDevice ? ' hero-actions-install-only' : ''}`}>
+            {!isMobileDevice ? renderSessionActionButtons('session-actions') : null}
             <button type="button" className="secondary-button" onClick={() => void handleInstall()}>
               ホーム画面に追加
             </button>
@@ -571,6 +579,8 @@ function App() {
               </select>
             </label>
           ) : null}
+
+          {isMobileDevice ? renderSessionActionButtons('session-actions camera-session-actions') : null}
 
           <div className="camera-stage">
             <video

@@ -798,20 +798,23 @@ const drawLineLabel = (
   line: PalmLineInput,
   width: number,
   height: number,
+  isMirrored: boolean,
 ) => {
   const palette = LINE_PALETTE[line.id]
   const rawAnchor = {
     x: line.points[line.points.length - 1].x * width,
     y: line.points[line.points.length - 1].y * height,
   }
-  const anchor = { x: width - rawAnchor.x, y: rawAnchor.y }
+  const anchor = isMirrored ? { x: width - rawAnchor.x, y: rawAnchor.y } : rawAnchor
   const labelX = clamp(anchor.x + 10, 18, width - 86)
   const labelY = clamp(anchor.y - 18, 14, height - 34)
   const text = line.id === 'life' ? '生命線' : line.id === 'head' ? '知能線' : '感情線'
 
   context.save()
-  context.translate(width, 0)
-  context.scale(-1, 1)
+  if (isMirrored) {
+    context.translate(width, 0)
+    context.scale(-1, 1)
+  }
   context.font = `600 ${Math.max(12, width * 0.015)}px Inter, "Noto Sans JP", sans-serif`
   const metrics = context.measureText(text)
   const boxWidth = metrics.width + 22
@@ -856,6 +859,7 @@ export const drawHandOverlay = (
   analysis: PalmFrameAnalysis | null,
   landmarks: NormalizedLandmark[] | null,
   reading: PalmReading | null,
+  isMirrored: boolean,
 ) => {
   if (!canvas) {
     return
@@ -912,7 +916,7 @@ export const drawHandOverlay = (
   if (reading) {
     reading.lines.forEach((line) => {
       drawSmoothLine(context, line.points, LINE_PALETTE[line.id].color, canvas.width, canvas.height)
-      drawLineLabel(context, line, canvas.width, canvas.height)
+      drawLineLabel(context, line, canvas.width, canvas.height, isMirrored)
     })
   }
 

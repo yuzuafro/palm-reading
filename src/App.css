@@ -69,6 +69,12 @@
   margin-top: 18px;
 }
 
+.session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .primary-button,
 .secondary-button {
   border: 0;
@@ -528,6 +534,17 @@
   .hero-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .hero-actions-install-only {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-session-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .primary-button,
