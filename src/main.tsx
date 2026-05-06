@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-const assetVersion = import.meta.env.VITE_MEDIAPIPE_ASSET_VERSION || 'dev'
+const assetVersion = __MEDIAPIPE_ASSET_VERSION__
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

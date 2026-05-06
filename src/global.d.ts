@@ -5,3 +5,5 @@ interface BeforeInstallPromptEvent extends Event {
     platform: string
   }>
 }
+
+declare const __MEDIAPIPE_ASSET_VERSION__: string

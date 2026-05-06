@@ -45,9 +45,6 @@ function App() {
   const [selectedFacingMode, setSelectedFacingMode] = useState<CameraFacingMode>('user')
   const [videoInputs, setVideoInputs] = useState<CameraDeviceOption[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState('')
-  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(
-    null,
-  )
 
   const isSecure = window.isSecureContext || window.location.hostname === 'localhost'
   const isMobileDevice =
@@ -416,34 +413,6 @@ function App() {
     [selectedDeviceId, sessionState, startSession],
   )
 
-  const handleInstall = useCallback(async () => {
-    if (!installPromptEvent) {
-      setFeedback('ブラウザのメニューからホーム画面に追加できます。')
-      return
-    }
-
-    await installPromptEvent.prompt()
-    const choice = await installPromptEvent.userChoice
-    setInstallPromptEvent(null)
-    setFeedback(
-      choice.outcome === 'accepted'
-        ? 'ホーム画面に追加しました。'
-        : 'あとからブラウザのメニューから追加できます。',
-    )
-  }, [installPromptEvent])
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault()
-      setInstallPromptEvent(event as BeforeInstallPromptEvent)
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
-  }, [])
-
   useEffect(() => {
     const refreshTimer = window.setTimeout(() => {
       void refreshVideoInputs()
@@ -520,12 +489,7 @@ function App() {
           <p className="lead">
             カメラで手のひらを読み取り、生命線・知能線・感情線を重ねて表示します。
           </p>
-          <div className={`hero-actions${isMobileDevice ? ' hero-actions-install-only' : ''}`}>
-            {!isMobileDevice ? renderSessionActionButtons('session-actions') : null}
-            <button type="button" className="secondary-button" onClick={() => void handleInstall()}>
-              ホーム画面に追加
-            </button>
-          </div>
+          {!isMobileDevice ? <div className="hero-actions">{renderSessionActionButtons('session-actions')}</div> : null}
           <div className="meta-row">
             <span className={`status-pill status-${sessionState}`}>{statusLabel}</span>
           </div>
@@ -542,9 +506,8 @@ function App() {
           </div>
 
           {isMobileDevice ? (
-            <div className="camera-controls" aria-label="カメラ切り替え">
-              <span className="camera-controls-label">使用カメラ</span>
-              <div className="camera-toggle-group" role="group" aria-label="アウトカメラ・インカメラの選択">
+            <div className="camera-controls" role="group" aria-label="カメラ切り替え">
+              <div className="camera-toggle-group">
                 <button
                   type="button"
                   className={`camera-toggle${selectedFacingMode === 'environment' ? ' is-active' : ''}`}
@@ -564,9 +527,9 @@ function App() {
               </div>
             </div>
           ) : showDesktopCameraSelect ? (
-            <label className="camera-select">
-              <span className="camera-controls-label">使用カメラ</span>
+            <div className="camera-select">
               <select
+                aria-label="使用カメラ"
                 value={selectedDeviceId}
                 onChange={(event) => handleDeviceSelect(event.target.value)}
                 disabled={sessionState === 'loading'}
@@ -577,12 +540,12 @@ function App() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           ) : null}
 
           {isMobileDevice ? renderSessionActionButtons('session-actions camera-session-actions') : null}
 
-          <div className="camera-stage">
+          <div className={`camera-stage${isMobileDevice ? ' camera-stage-mobile' : ''}`}>
             <video
               ref={videoRef}
               className={`camera-video${isPreviewMirrored ? ' is-mirrored' : ''}`}

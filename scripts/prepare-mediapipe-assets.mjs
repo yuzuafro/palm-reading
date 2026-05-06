@@ -6,28 +6,9 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(scriptDir, '..')
 
-const parseDotEnv = async (filePath) => {
+const readJsonConfig = async (filePath) => {
   try {
-    const content = await readFile(filePath, 'utf8')
-    return Object.fromEntries(
-      content
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter((line) => line && !line.startsWith('#'))
-        .map((line) => {
-          const separatorIndex = line.indexOf('=')
-          if (separatorIndex === -1) {
-            return [line, '']
-          }
-
-          const key = line.slice(0, separatorIndex).trim()
-          const rawValue = line.slice(separatorIndex + 1).trim()
-          const quoted =
-            (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-            (rawValue.startsWith("'") && rawValue.endsWith("'"))
-          return [key, quoted ? rawValue.slice(1, -1) : rawValue]
-        }),
-    )
+    return JSON.parse(await readFile(filePath, 'utf8'))
   } catch {
     return {}
   }
@@ -42,11 +23,8 @@ const fileExists = async (filePath) => {
   }
 }
 
-const env = {
-  ...(await parseDotEnv(path.join(projectRoot, '.env'))),
-  ...(await parseDotEnv(path.join(projectRoot, '.env.local'))),
-  ...process.env,
-}
+const config = await readJsonConfig(path.join(projectRoot, 'mediapipe-assets.config.json'))
+const env = process.env
 
 const readInstalledTasksVisionVersion = async () => {
   const packagePath = path.join(
@@ -66,10 +44,10 @@ const readInstalledTasksVisionVersion = async () => {
 }
 
 const tasksVisionVersion = await readInstalledTasksVisionVersion()
-const assetVersion = env.VITE_MEDIAPIPE_ASSET_VERSION || '0.10.35-1'
-const releaseTag = env.VITE_MEDIAPIPE_RELEASE_TAG || `mediapipe-assets-v${assetVersion}`
-const releaseOwner = env.VITE_MEDIAPIPE_RELEASE_OWNER || 'yuzuafro'
-const releaseRepo = env.VITE_MEDIAPIPE_RELEASE_REPO || 'palm-reading'
+const assetVersion = env.MEDIAPIPE_ASSET_VERSION || config.assetVersion || '0.10.35-1'
+const releaseTag = env.MEDIAPIPE_RELEASE_TAG || `mediapipe-assets-v${assetVersion}`
+const releaseOwner = env.MEDIAPIPE_RELEASE_OWNER || 'yuzuafro'
+const releaseRepo = env.MEDIAPIPE_RELEASE_REPO || 'palm-reading'
 const assetSource = env.MEDIAPIPE_ASSET_SOURCE || 'auto'
 const targetRoot = path.resolve(projectRoot, env.MEDIAPIPE_ASSET_TARGET_DIR || 'public')
 

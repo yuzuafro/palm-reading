@@ -17,8 +17,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` / `npm run build` の前に MediaPipe のモデルと Wasm を確認し、ローカルに無ければ release asset を優先して取得します。  
-release asset が未作成でも、初回は公式配布元から補充されるのでローカル確認ができます。
+`npm run dev` / `npm run build` の前に MediaPipe のモデルと Wasm を確認し、ローカルに無ければ自動で補充します。
 
 ブラウザで表示したらカメラ権限を許可してください。  
 カメラ API は HTTPS または `localhost` でのみ利用できます。
@@ -42,16 +41,9 @@ npm run build
 
 ### MediaPipe asset の運用
 
-- バージョンは `.env` の `VITE_MEDIAPIPE_ASSET_VERSION` / `VITE_MEDIAPIPE_RELEASE_TAG` で管理します
+- バージョンは `mediapipe-assets.config.json` の `assetVersion` で管理します
 - ビルド時は `public/models` と `public/wasm` を自動補充し、その内容を Pages に含めます
-- release asset を使う場合は、`VITE_MEDIAPIPE_RELEASE_TAG` に対応する GitHub Release に次の 7 ファイルを置きます
-  - `hand_landmarker.task`
-  - `vision_wasm_internal.js`
-  - `vision_wasm_internal.wasm`
-  - `vision_wasm_nosimd_internal.js`
-  - `vision_wasm_nosimd_internal.wasm`
-  - `vision_wasm_module_internal.js`
-  - `vision_wasm_module_internal.wasm`
+- 必要なファイルが手元にない場合は、スクリプトが取得して `public/` 配下へ配置します
 
 ## 技術構成
 
@@ -60,6 +52,12 @@ npm run build
 - MediaPipe Tasks Vision (Hand Landmarker)
 - build 前に MediaPipe asset を補充する Node.js スクリプト
 - 手動登録の service worker / Web App Manifest
+
+## アイコン編集
+
+- `public/favicon.drawio.svg` が draw.io / diagrams.net で再編集する元データです
+- `public/favicon.svg`、`icon-192.png`、`icon-512.png`、`apple-touch-icon.png` は `public/favicon.drawio.svg` を元にした配布用アセットです
+- アイコン書き出し時は、紫とピンクの円が角丸アイコン領域からはみ出す部分を含めない前提です
 
 ## 注意
 

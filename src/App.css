@@ -189,11 +189,6 @@
   margin-bottom: 14px;
 }
 
-.camera-controls-label {
-  color: #cbd5f5;
-  font-size: 0.88rem;
-}
-
 .camera-toggle-group {
   display: inline-flex;
   padding: 4px;
@@ -243,6 +238,12 @@
   background:
     radial-gradient(circle at top, rgba(139, 92, 246, 0.2), transparent 40%),
     linear-gradient(180deg, rgba(10, 8, 20, 0.85), rgba(8, 6, 16, 0.96));
+}
+
+.camera-stage-mobile {
+  width: min(100%, 540px);
+  margin-inline: auto;
+  aspect-ratio: 3 / 4;
 }
 
 .line-legend {
@@ -534,10 +535,6 @@
   .hero-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-
-  .hero-actions-install-only {
-    grid-template-columns: 1fr;
   }
 
   .camera-session-actions {
